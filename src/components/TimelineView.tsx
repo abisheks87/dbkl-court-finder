@@ -1,0 +1,467 @@
+import React, { useState, useMemo } from "react";
+import {
+  hasConsecutiveSlotsInRange,
+  TIME_ORDER,
+} from "../utils/consecutiveSlots";
+import { CourtRow } from "./CourtRow";
+import type { LocationDetail } from "../hooks/useLocationDetails";
+import type { LocationFacility } from "../types";
+
+interface TimelineViewProps {
+  courts: LocationFacility[];
+  minConsecutiveSlots: number;
+  minCourtsNeeded: number;
+  timeRangeStart: string | null;
+  timeRangeEnd: string | null;
+  loading: boolean;
+  error: string | null;
+  distances?: Map<string, { formatted: string; km: number; lat: number; lng: number }>; // keyed by location_id
+  locationDetails?: Map<string, LocationDetail>; // keyed by location_id
+  loadedCount?: number;
+  totalCount?: number;
+}
+
+// Shared ordered list of display labels for the time header.
+// Include up to 11PM (index 15) so that a 10PM–12AM two-hour slot can span 2 columns.
+const HEADER_TIMES = TIME_ORDER.slice(0, 16); // 8AM–11PM
+const VENUE_COLUMN_WIDTH = 160;
+const TIME_COLUMN_MIN_WIDTH = 32;
+
+export function TimelineView({
+  courts,
+  minConsecutiveSlots,
+  minCourtsNeeded,
+  timeRangeStart,
+  timeRangeEnd,
+  loading,
+  error,
+  distances,
+  locationDetails,
+  loadedCount = 0,
+  totalCount = 0,
+}: TimelineViewProps) {
+  const [showDimmed, setShowDimmed] = useState(false);
+  const [collapsedLocations, setCollapsedLocations] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const toggleCollapse = (locName: string) => {
+    setCollapsedLocations((prev) => {
+      const next = new Set(prev);
+      if (next.has(locName)) next.delete(locName);
+      else next.add(locName);
+      return next;
+    });
+  };
+
+  // Memoised filter checks (must be before any early return)
+  const courtsPassingFilter = useMemo(
+    () =>
+      courts.filter((court) =>
+        hasConsecutiveSlotsInRange(
+          court.location_facility_times,
+          minConsecutiveSlots,
+          timeRangeStart,
+          timeRangeEnd,
+        ),
+      ),
+    [courts, minConsecutiveSlots, timeRangeStart, timeRangeEnd],
+  );
+
+  const passingIds = useMemo(
+    () => new Set(courtsPassingFilter.map((c) => c.id)),
+    [courtsPassingFilter],
+  );
+
+  // Location IDs that have enough passing courts to satisfy minCourtsNeeded
+  const qualifyingLocationIds = useMemo(() => {
+    const countByLoc: Record<string, number> = {};
+    courtsPassingFilter.forEach((c) => {
+      countByLoc[c.location_id] = (countByLoc[c.location_id] ?? 0) + 1;
+    });
+    return new Set(
+      Object.entries(countByLoc)
+        .filter(([, count]) => count >= minCourtsNeeded)
+        .map(([id]) => id),
+    );
+  }, [courtsPassingFilter, minCourtsNeeded]);
+
+  // Courts to display: when showDimmed, show all courts regardless; otherwise show only those in qualifying locations
+  const displayedCourts = useMemo(() => {
+    if (showDimmed) return courts;
+    return courtsPassingFilter.filter((c) =>
+      qualifyingLocationIds.has(c.location_id),
+    );
+  }, [showDimmed, courts, courtsPassingFilter, qualifyingLocationIds]);
+
+  // Group ALL courts by location_id (unique key) — used for totals and sorting
+  const allCourtsByLocId = useMemo(() => {
+    const grouped: Record<string, LocationFacility[]> = {};
+    courts.forEach((court) => {
+      (grouped[court.location_id] ??= []).push(court);
+    });
+    return grouped;
+  }, [courts]);
+
+  // Group DISPLAYED courts by location_id — used for rendering rows
+  const courtsByLocId = useMemo(() => {
+    const grouped: Record<string, LocationFacility[]> = {};
+    displayedCourts.forEach((court) => {
+      (grouped[court.location_id] ??= []).push(court);
+    });
+    return grouped;
+  }, [displayedCourts]);
+
+  // Sort location_ids: by distance km (ascending), then alphabetical by display name
+  const sortedLocationIds = useMemo(() => {
+    return Object.keys(allCourtsByLocId).sort((a, b) => {
+      const nameA = allCourtsByLocId[a]?.[0]?.location_name ?? a;
+      const nameB = allCourtsByLocId[b]?.[0]?.location_name ?? b;
+      const da = distances?.get(a)?.km; // keyed by location_id
+      const db = distances?.get(b)?.km;
+      if (da != null && db != null) return da - db;
+      if (da != null) return -1;
+      if (db != null) return 1;
+      return nameA.localeCompare(nameB);
+    });
+  }, [allCourtsByLocId, distances]);
+
+  // Time header: union of all start times actually present, ordered.
+  // Also include the 11PM column if any slot ends at 12AM (so 10PM→12AM spans 2 columns).
+  // Build a map from start_time_value → start_time_id for CourtRow dedup.
+  const { allTimeSlots, timeValueToId } = useMemo(() => {
+    const presentSet = new Set<string>();
+    const valueToId = new Map<string, string>();
+    let needsElevenPm = false;
+
+    courts.forEach((c) =>
+      c.location_facility_times.forEach((t) => {
+        presentSet.add(t.start_time_value);
+        if (t.end_time_value === "12:00 AM") needsElevenPm = true;
+        // Prefer the smallest id (1h slot) when multiple slots share the same start_time_value
+        if (
+          !valueToId.has(t.start_time_value) ||
+          parseInt(t.start_time_id, 10) <
+            parseInt(valueToId.get(t.start_time_value)!, 10)
+        ) {
+          valueToId.set(t.start_time_value, t.start_time_id);
+        }
+      }),
+    );
+
+    let slots: string[];
+    if (courts.length === 0) {
+      slots = HEADER_TIMES;
+    } else {
+      slots = HEADER_TIMES.filter((t) => {
+        if (t === "11:00 PM") return needsElevenPm;
+        return presentSet.has(t);
+      });
+    }
+    return { allTimeSlots: slots, timeValueToId: valueToId };
+  }, [courts]);
+
+  // Ordered list of start_time_ids matching the header columns, used by CourtRow for dedup
+  const allTimeSlotIds = useMemo(
+    () => allTimeSlots.map((t) => timeValueToId.get(t) ?? ""),
+    [allTimeSlots, timeValueToId],
+  );
+  const timelineGridTemplate = useMemo(
+    () =>
+      `${VENUE_COLUMN_WIDTH}px repeat(${allTimeSlotIds.length}, minmax(${TIME_COLUMN_MIN_WIDTH}px, 1fr))`,
+    [allTimeSlotIds.length],
+  );
+  const timelineMinWidth = useMemo(
+    () => VENUE_COLUMN_WIDTH + allTimeSlotIds.length * TIME_COLUMN_MIN_WIDTH,
+    [allTimeSlotIds.length],
+  );
+
+  // Early returns after all hooks
+  if (error) {
+    return (
+      <div className="bg-red-900/30 border border-red-700 rounded-2xl p-5 text-red-300">
+        <p className="font-semibold">Error loading courts</p>
+        <p className="text-sm mt-1 text-red-400">{error}</p>
+      </div>
+    );
+  }
+
+  // Progress bar while loading all locations
+  if (loading && courts.length === 0) {
+    const pct =
+      totalCount > 0 ? Math.round((loadedCount / totalCount) * 100) : 0;
+    return (
+      <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-8 text-center">
+        <p className="text-slate-300 text-sm font-medium mb-3">
+          Loading courts — {loadedCount} / {totalCount || "…"} locations
+        </p>
+        <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+          <div
+            className="shimmer-bar h-full rounded-full transition-all duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-slate-500 text-xs mt-2">{pct}% complete</p>
+      </div>
+    );
+  }
+
+  if (courts.length === 0 && !loading) {
+    return (
+      <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-10 text-center text-slate-500">
+        <div className="text-4xl mb-3">🏸</div>
+        <p className="font-medium text-slate-400">
+          No courts found for the selected filters.
+        </p>
+        <p className="text-xs mt-1">
+          Try adjusting the date, location or time range.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Progressive loading bar (still fetching but already have some data) */}
+      {loading && courts.length > 0 && (
+        <div className="bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+            <span>
+              Loading {loadedCount} / {totalCount} locations…
+            </span>
+            <span>
+              {totalCount > 0
+                ? Math.round((loadedCount / totalCount) * 100)
+                : 0}
+              %
+            </span>
+          </div>
+          <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+            <div
+              className="shimmer-bar h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${totalCount > 0 ? Math.round((loadedCount / totalCount) * 100) : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Stats bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
+            <span className="text-emerald-400 font-bold">
+              {qualifyingLocationIds.size}
+            </span>
+            <span className="text-slate-400">venues · </span>
+            <span className="text-emerald-400 font-bold">
+              {
+                courtsPassingFilter.filter((c) =>
+                  qualifyingLocationIds.has(c.location_id),
+                ).length
+              }
+            </span>
+            <span className="text-slate-400">courts matching filters</span>
+          </span>
+          {courts.length > courtsPassingFilter.length && (
+            <span className="text-slate-600 text-xs">
+              ({courts.length - courtsPassingFilter.length} others)
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowDimmed(!showDimmed)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+              showDimmed
+                ? "bg-slate-600 text-white border-slate-500"
+                : "bg-transparent text-slate-400 border-slate-600 hover:border-slate-400"
+            }`}
+          >
+            {showDimmed ? "Matching only" : "Show all"}
+          </button>
+        </div>
+      </div>
+
+      {/* Timeline grid
+          overflow-hidden is intentionally NOT used here — it breaks position:sticky on children.
+          overflow-x-auto allows horizontal scroll on narrow screens while keeping sticky working.
+      */}
+      <div className="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-x-auto">
+        {/* Keep the inner width in sync with the shared timeline grid so rows stay aligned. */}
+        <div style={{ minWidth: `${timelineMinWidth}px` }}>
+          {/*
+          gridTemplateColumns uses minmax(32px, 1fr) so time columns grow to fill the full
+          available width on wide screens and shrink no smaller than 32px on narrow ones.
+          The header and every CourtRow use the EXACT same template — perfect alignment guaranteed.
+        */}
+          <div
+            className="sticky top-2 z-20 border-b border-slate-700 bg-slate-950/95 px-3 py-2 shadow-[0_10px_24px_rgba(2,6,23,0.45)] backdrop-blur-sm"
+            style={{
+              display: "grid",
+              gridTemplateColumns: timelineGridTemplate,
+            }}
+          >
+            <div className="pr-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Venue
+            </div>
+            {allTimeSlots.map((slot) => (
+              <div
+                key={slot}
+                className={`text-center text-xs font-medium ${
+                  timeRangeStart || timeRangeEnd
+                    ? isInTimeRange(slot, timeRangeStart, timeRangeEnd)
+                      ? "text-orange-400"
+                      : "text-slate-600"
+                    : "text-slate-400"
+                }`}
+              >
+                {slot.replace(":00 ", "").toLowerCase()}
+              </div>
+            ))}
+          </div>
+
+          {/* Location groups */}
+          <div className="divide-y divide-slate-700/50 pt-2">
+            {sortedLocationIds.map((locId) => {
+              // displayedCourts for this location_id (may be empty if all filtered out and showDimmed=false)
+              const locationCourts = courtsByLocId[locId];
+              if (!locationCourts || locationCourts.length === 0) return null;
+
+              const locName = locationCourts[0]?.location_name ?? locId;
+
+              // Total courts for this location (all, not just passing filter)
+              const totalCourts =
+                allCourtsByLocId[locId]?.length ?? locationCourts.length;
+              // How many pass the current filter
+              const availCount = (allCourtsByLocId[locId] ?? []).filter((c) =>
+                passingIds.has(c.id),
+              ).length;
+              const isCollapsed = collapsedLocations.has(locId);
+              const dist = distances?.get(locId); // keyed by location_id
+              const parlimentName = locationDetails?.get(locId)?.parliment_name;
+
+              return (
+                <div key={locId}>
+                  {/* Location header */}
+                  <button
+                    onClick={() => toggleCollapse(locId)}
+                    className="w-full flex flex-wrap items-start gap-x-3 gap-y-2 px-3 py-2.5 bg-slate-900/40 hover:bg-slate-900/60 transition-colors text-left"
+                  >
+                    <div className="flex min-w-[220px] flex-1 items-start gap-3">
+                      {/* Collapse indicator */}
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={`w-3.5 h-3.5 fill-slate-500 shrink-0 mt-0.5 transition-transform duration-200 ${
+                          isCollapsed ? "-rotate-90" : ""
+                        }`}
+                      >
+                        <path d="M7 10l5 5 5-5z" />
+                      </svg>
+
+                      {/* Name + parliament */}
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-semibold text-slate-200 leading-tight block">
+                          {locName}
+                        </span>
+                        {parlimentName && (
+                          <span className="text-xs text-slate-500 block leading-tight mt-0.5">
+                            {parlimentName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                      {/* Distance badge — links to Google Maps directions for this venue */}
+                      {dist && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${dist.lat},${dist.lng}&travelmode=driving`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Estimated road distance · tap for directions"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5 shrink-0 hover:bg-emerald-400/20 hover:border-emerald-400/40 transition-colors"
+                        >
+                          {dist.formatted}
+                        </a>
+                      )}
+
+                      {/* Court availability count */}
+                      <span
+                        className={`text-xs font-semibold rounded-full px-2.5 py-0.5 shrink-0 ${
+                          availCount > 0
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                            : "bg-slate-700 text-slate-500"
+                        }`}
+                      >
+                        {availCount}/{totalCourts} available
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Courts */}
+                  {!isCollapsed && (
+                    <div className="px-3 py-1.5 space-y-0.5">
+                      {locationCourts.map((court) => (
+                        <CourtRow
+                          key={court.id}
+                          venueName={court.venue_name}
+                          slots={court.location_facility_times}
+                          isDimmed={showDimmed && !passingIds.has(court.id)}
+                          timeSlotIds={allTimeSlotIds}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* end inner min-width wrapper */}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 px-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div
+            className="w-5 h-5 rounded"
+            style={{ backgroundColor: "#4ade80" }}
+          />
+          <span className="text-xs text-slate-400">Available</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-slate-600" />
+          <span className="text-xs text-slate-400">Booked</span>
+        </div>
+        {(timeRangeStart || timeRangeEnd) && (
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded bg-orange-500/30 border border-orange-500/50" />
+            <span className="text-xs text-slate-400">In selected window</span>
+          </div>
+        )}
+        {distances && distances.size > 0 && (
+          <span className="text-xs text-slate-500 ml-auto">
+            Sorted by distance · nearest first
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Helper: check if a time slot falls within the selected time range (for header highlighting)
+function isInTimeRange(
+  time: string,
+  start: string | null,
+  end: string | null,
+): boolean {
+  if (!start && !end) return false;
+  const i = TIME_ORDER.indexOf(time);
+  const si = start ? TIME_ORDER.indexOf(start) : 0;
+  const ei = end ? TIME_ORDER.indexOf(end) : TIME_ORDER.length - 1;
+  return i >= si && i <= ei;
+}
