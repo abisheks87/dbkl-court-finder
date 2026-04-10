@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { LocationFacility, LocationData } from '../types';
+import type { LocationFacility, LocationData, SportCategory } from '../types';
 
 interface LocationCourtGroup {
   location_id: string;
@@ -19,7 +19,8 @@ interface UseAllFacilitiesReturn {
 export function useAllFacilities(
   locations: LocationData[],
   date: string,
-  enabled: boolean
+  enabled: boolean,
+  sport: SportCategory
 ): UseAllFacilitiesReturn {
   const [results, setResults] = useState<LocationCourtGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,7 +60,7 @@ export function useAllFacilities(
 
           const batchPromises = batch.map(loc =>
             fetch(
-              `https://apihub.dbkl.gov.my/api/public/v1/location/facility?sub_category=BADMINTON&location_id=${loc.location_id}&search_date=${date}`
+              `https://apihub.dbkl.gov.my/api/public/v1/location/facility?sub_category=${encodeURIComponent(sport)}&location_id=${loc.location_id}&search_date=${date}`
             )
               .then(res => {
                 if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -110,7 +111,7 @@ export function useAllFacilities(
     return () => {
       cancelled = true;
     };
-  }, [locations, date, enabled]);
+  }, [locations, date, enabled, sport]);
 
   return { results, loading, progress, loadedCount, totalCount: locations.length, error };
 }

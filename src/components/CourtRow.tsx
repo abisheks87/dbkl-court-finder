@@ -65,8 +65,7 @@ export function CourtRow({ venueName, slots, isDimmed, timeSlotIds }: CourtRowPr
       cells.push(
         <div
           key={`empty-${timeId}`}
-          className="h-10 rounded-sm"
-          style={{ backgroundColor: '#1e293b' }}
+          className="h-10 rounded-sm bg-slate-100 dark:bg-slate-800"
         />
       );
     }
@@ -77,7 +76,7 @@ export function CourtRow({ venueName, slots, isDimmed, timeSlotIds }: CourtRowPr
       className={`items-center py-1 ${isDimmed ? 'opacity-40' : ''}`}
       style={{ display: 'grid', gridTemplateColumns: `160px repeat(${timeSlotIds.length}, minmax(32px, 1fr))` }}
     >
-      <div className="pr-2 font-medium text-sm text-slate-300 truncate">
+      <div className="pr-2 font-medium text-sm text-slate-700 dark:text-slate-300 truncate">
         {venueName}
       </div>
       {cells}

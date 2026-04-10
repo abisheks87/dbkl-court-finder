@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { LocationFacility } from '../types';
+import type { LocationFacility, SportCategory } from '../types';
 
 interface UseFacilityReturn {
   courts: LocationFacility[];
@@ -9,7 +9,8 @@ interface UseFacilityReturn {
 
 export function useFacility(
   locationId: string | null,
-  date: string | null
+  date: string | null,
+  sport: SportCategory
 ): UseFacilityReturn {
   const [courts, setCourts] = useState<LocationFacility[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,7 @@ export function useFacility(
       try {
         setLoading(true);
         const response = await fetch(
-          `https://apihub.dbkl.gov.my/api/public/v1/location/facility?sub_category=BADMINTON&location_id=${locationId}&search_date=${date}`
+          `https://apihub.dbkl.gov.my/api/public/v1/location/facility?sub_category=${encodeURIComponent(sport)}&location_id=${locationId}&search_date=${date}`
         );
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
@@ -44,7 +45,7 @@ export function useFacility(
     };
 
     fetchFacility();
-  }, [locationId, date]);
+  }, [locationId, date, sport]);
 
   return { courts, loading, error };
 }

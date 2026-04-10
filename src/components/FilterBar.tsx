@@ -1,5 +1,7 @@
 import React, { useCallback } from 'react';
 import { TIME_ORDER } from '../utils/consecutiveSlots';
+import { SPORT_OPTIONS } from '../types';
+import type { SportCategory } from '../types';
 
 // Display labels for each time slot
 const TIME_LABELS: Record<string, string> = {
@@ -18,6 +20,8 @@ interface LocationEntry {
 }
 
 interface FilterBarProps {
+  sport: SportCategory;
+  onSportChange: (sport: SportCategory) => void;
   date: string;
   onDateChange: (date: string) => void;
   locationId: string;
@@ -38,6 +42,8 @@ interface FilterBarProps {
 }
 
 export function FilterBar({
+  sport,
+  onSportChange,
   date,
   onDateChange,
   locationId,
@@ -133,32 +139,54 @@ export function FilterBar({
     : 'Any time';
 
   return (
-    <div className="bg-slate-800 shadow-xl rounded-2xl p-5 mb-6 border border-slate-700">
+    <div className="bg-white/90 dark:bg-slate-800 shadow-lg dark:shadow-xl rounded-2xl p-5 mb-6 border border-slate-200 dark:border-slate-700 backdrop-blur-sm transition-colors duration-200">
+      {/* Sport selector */}
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+          Sport
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {SPORT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => onSportChange(opt.value)}
+              className={`px-3 py-2 rounded-xl text-sm font-bold transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                sport === opt.value
+                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 dark:shadow-emerald-500/30'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Row 1: Date · Location */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {/* Date */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Date
           </label>
           <input
             type="date"
             value={date}
             onChange={e => onDateChange(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 transition-colors"
           />
         </div>
 
         {/* Location */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Location
           </label>
           <select
             value={locationId}
             onChange={e => onLocationChange(e.target.value)}
             disabled={locationLoading}
-            className="w-full px-3 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+            className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-50 transition-colors"
           >
             <option value="">
               {locationLoading ? `Loading… ${allLocationsProgress}%` : 'All Locations'}
@@ -180,7 +208,7 @@ export function FilterBar({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         {/* Min Consecutive Slots */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Min Consecutive Hours
           </label>
           <div className="flex items-center gap-2">
@@ -189,10 +217,10 @@ export function FilterBar({
                 <button
                   key={n}
                   onClick={() => onMinSlotsChange(n)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                     minConsecutiveSlots === n
                       ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
                   {n}h
@@ -205,14 +233,14 @@ export function FilterBar({
               max="12"
               value={minConsecutiveSlots}
               onChange={e => onMinSlotsChange(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-16 px-2 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-16 px-2 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 transition-colors"
             />
           </div>
         </div>
 
         {/* Min Courts Needed */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Min Courts Needed
           </label>
           <div className="flex items-center gap-2">
@@ -221,10 +249,10 @@ export function FilterBar({
                 <button
                   key={n}
                   onClick={() => onMinCourtsChange(n)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                     minCourtsNeeded === n
                       ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
                   {n}
@@ -237,10 +265,10 @@ export function FilterBar({
               max="20"
               value={minCourtsNeeded}
               onChange={e => onMinCourtsChange(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-16 px-2 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-16 px-2 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 transition-colors"
             />
           </div>
-          <p className="text-xs text-slate-500 mt-1.5">
+          <p className="text-xs text-slate-500 dark:text-slate-500 mt-1.5">
             Venues with at least this many courts available simultaneously
           </p>
         </div>
@@ -249,14 +277,14 @@ export function FilterBar({
       {/* Row 2: Time range picker */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Time Window
           </label>
-          <span className="text-xs font-medium text-emerald-400">{rangeLabel}</span>
+          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{rangeLabel}</span>
           {(timeRangeStart || timeRangeEnd) && (
             <button
               onClick={() => { onTimeRangeStartChange(null); onTimeRangeEndChange(null); }}
-              className="text-xs text-slate-500 hover:text-slate-300 transition-colors ml-3"
+              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors ml-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 rounded"
             >
               Clear
             </button>
@@ -270,12 +298,12 @@ export function FilterBar({
               <button
                 key={time}
                 onClick={() => handleTimeClick(time)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all select-none ${
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all select-none active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   endpoint
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-500/40 scale-105'
                     : inRange
-                    ? 'bg-orange-900/60 text-orange-200 border border-orange-700'
-                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-200'
+                    ? 'bg-orange-100 text-orange-700 border border-orange-300 dark:bg-orange-900/60 dark:text-orange-200 dark:border-orange-700'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 {TIME_LABELS[time] ?? time}
@@ -283,7 +311,7 @@ export function FilterBar({
             );
           })}
         </div>
-        <p className="text-xs text-slate-500 mt-2">
+        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">
           Tap a time to set start · tap another to set end · tap endpoint to adjust
         </p>
       </div>

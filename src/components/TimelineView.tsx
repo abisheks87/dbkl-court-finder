@@ -5,10 +5,12 @@ import {
 } from "../utils/consecutiveSlots";
 import { CourtRow } from "./CourtRow";
 import type { LocationDetail } from "../hooks/useLocationDetails";
-import type { LocationFacility } from "../types";
+import type { LocationFacility, SportCategory } from "../types";
 
 interface TimelineViewProps {
   courts: LocationFacility[];
+  date: string;
+  sport: SportCategory;
   minConsecutiveSlots: number;
   minCourtsNeeded: number;
   timeRangeStart: string | null;
@@ -29,6 +31,8 @@ const TIME_COLUMN_MIN_WIDTH = 32;
 
 export function TimelineView({
   courts,
+  date,
+  sport,
   minConsecutiveSlots,
   minCourtsNeeded,
   timeRangeStart,
@@ -179,9 +183,9 @@ export function TimelineView({
   // Early returns after all hooks
   if (error) {
     return (
-      <div className="bg-red-900/30 border border-red-700 rounded-2xl p-5 text-red-300">
+      <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-2xl p-5 text-red-700 dark:text-red-300">
         <p className="font-semibold">Error loading courts</p>
-        <p className="text-sm mt-1 text-red-400">{error}</p>
+        <p className="text-sm mt-1 text-red-600 dark:text-red-400">{error}</p>
       </div>
     );
   }
@@ -191,30 +195,30 @@ export function TimelineView({
     const pct =
       totalCount > 0 ? Math.round((loadedCount / totalCount) * 100) : 0;
     return (
-      <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-8 text-center">
-        <p className="text-slate-300 text-sm font-medium mb-3">
+      <div className="bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center transition-colors duration-200">
+        <p className="text-slate-700 dark:text-slate-300 text-sm font-medium mb-3">
           Loading courts — {loadedCount} / {totalCount || "…"} locations
         </p>
-        <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
           <div
             className="shimmer-bar h-full rounded-full transition-all duration-300"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="text-slate-500 text-xs mt-2">{pct}% complete</p>
+        <p className="text-slate-500 dark:text-slate-500 text-xs mt-2">{pct}% complete</p>
       </div>
     );
   }
 
   if (courts.length === 0 && !loading) {
     return (
-      <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-10 text-center text-slate-500">
-        <div className="text-4xl mb-3">🏸</div>
-        <p className="font-medium text-slate-400">
+      <div className="bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-10 text-center transition-colors duration-200">
+        <div className="text-5xl mb-3">🏸</div>
+        <p className="font-medium text-slate-700 dark:text-slate-400">
           No courts found for the selected filters.
         </p>
-        <p className="text-xs mt-1">
-          Try adjusting the date, location or time range.
+        <p className="text-xs mt-1 text-slate-500 dark:text-slate-500">
+          Try widening the time window, lowering minimum hours, or picking a different date.
         </p>
       </div>
     );
@@ -224,8 +228,8 @@ export function TimelineView({
     <div className="space-y-4">
       {/* Progressive loading bar (still fetching but already have some data) */}
       {loading && courts.length > 0 && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+        <div className="bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-1.5">
             <span>
               Loading {loadedCount} / {totalCount} locations…
             </span>
@@ -236,7 +240,7 @@ export function TimelineView({
               %
             </span>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
             <div
               className="shimmer-bar h-full rounded-full transition-all duration-300"
               style={{
@@ -248,36 +252,48 @@ export function TimelineView({
       )}
 
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 transition-colors duration-200">
         <div className="flex items-center gap-3 text-sm flex-wrap">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
-            <span className="text-emerald-400 font-bold">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 inline-block"></span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
               {qualifyingLocationIds.size}
             </span>
-            <span className="text-slate-400">venues · </span>
-            <span className="text-emerald-400 font-bold">
+            <span className="text-slate-600 dark:text-slate-400">venues · </span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
               {
                 courtsPassingFilter.filter((c) =>
                   qualifyingLocationIds.has(c.location_id),
                 ).length
               }
             </span>
-            <span className="text-slate-400">courts matching filters</span>
+            <span className="text-slate-600 dark:text-slate-400">courts matching filters</span>
           </span>
           {courts.length > courtsPassingFilter.length && (
-            <span className="text-slate-600 text-xs">
+            <span className="text-slate-500 dark:text-slate-600 text-xs">
               ({courts.length - courtsPassingFilter.length} others)
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs text-slate-500 dark:text-slate-500">
+            Tip: log in to{" "}
+            <a
+              href="https://tempahkl.dbkl.gov.my"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-600 dark:text-slate-400 underline hover:text-emerald-600 dark:hover:text-emerald-400"
+            >
+              DBKL
+            </a>
+            {" "}first so Book links jump straight to the venue.
+          </span>
           <button
             onClick={() => setShowDimmed(!showDimmed)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               showDimmed
-                ? "bg-slate-600 text-white border-slate-500"
-                : "bg-transparent text-slate-400 border-slate-600 hover:border-slate-400"
+                ? "bg-slate-200 text-slate-900 border-slate-300 dark:bg-slate-600 dark:text-white dark:border-slate-500"
+                : "bg-transparent text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:border-slate-500 dark:hover:border-slate-400"
             }`}
           >
             {showDimmed ? "Matching only" : "Show all"}
@@ -289,7 +305,7 @@ export function TimelineView({
           overflow-hidden is intentionally NOT used here — it breaks position:sticky on children.
           overflow-x-auto allows horizontal scroll on narrow screens while keeping sticky working.
       */}
-      <div className="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-x-auto">
+      <div className="bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-x-auto transition-colors duration-200">
         {/* Keep the inner width in sync with the shared timeline grid so rows stay aligned. */}
         <div style={{ minWidth: `${timelineMinWidth}px` }}>
           {/*
@@ -298,13 +314,13 @@ export function TimelineView({
           The header and every CourtRow use the EXACT same template — perfect alignment guaranteed.
         */}
           <div
-            className="sticky top-2 z-20 border-b border-slate-700 bg-slate-950/95 px-3 py-2 shadow-[0_10px_24px_rgba(2,6,23,0.45)] backdrop-blur-sm"
+            className="sticky top-2 z-20 border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-950/95 px-3 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:shadow-[0_10px_24px_rgba(2,6,23,0.45)] backdrop-blur-sm"
             style={{
               display: "grid",
               gridTemplateColumns: timelineGridTemplate,
             }}
           >
-            <div className="pr-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <div className="pr-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">
               Venue
             </div>
             {allTimeSlots.map((slot) => (
@@ -313,9 +329,9 @@ export function TimelineView({
                 className={`text-center text-xs font-medium ${
                   timeRangeStart || timeRangeEnd
                     ? isInTimeRange(slot, timeRangeStart, timeRangeEnd)
-                      ? "text-orange-400"
-                      : "text-slate-600"
-                    : "text-slate-400"
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-slate-400 dark:text-slate-600"
+                    : "text-slate-600 dark:text-slate-400"
                 }`}
               >
                 {slot.replace(":00 ", "").toLowerCase()}
@@ -324,8 +340,8 @@ export function TimelineView({
           </div>
 
           {/* Location groups */}
-          <div className="divide-y divide-slate-700/50 pt-2">
-            {sortedLocationIds.map((locId) => {
+          <div className="divide-y divide-slate-200 dark:divide-slate-700/50 pt-2">
+            {sortedLocationIds.map((locId, index) => {
               // displayedCourts for this location_id (may be empty if all filtered out and showDimmed=false)
               const locationCourts = courtsByLocId[locId];
               if (!locationCourts || locationCourts.length === 0) return null;
@@ -344,17 +360,21 @@ export function TimelineView({
               const parlimentName = locationDetails?.get(locId)?.parliment_name;
 
               return (
-                <div key={locId}>
+                <div
+                  key={locId}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }}
+                >
                   {/* Location header */}
                   <button
                     onClick={() => toggleCollapse(locId)}
-                    className="w-full flex flex-wrap items-start gap-x-3 gap-y-2 px-3 py-2.5 bg-slate-900/40 hover:bg-slate-900/60 transition-colors text-left"
+                    className="w-full flex flex-wrap items-start gap-x-3 gap-y-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-inset"
                   >
                     <div className="flex min-w-[220px] flex-1 items-start gap-3">
                       {/* Collapse indicator */}
                       <svg
                         viewBox="0 0 24 24"
-                        className={`w-3.5 h-3.5 fill-slate-500 shrink-0 mt-0.5 transition-transform duration-200 ${
+                        className={`w-3.5 h-3.5 fill-slate-400 dark:fill-slate-500 shrink-0 mt-0.5 transition-transform duration-200 ${
                           isCollapsed ? "-rotate-90" : ""
                         }`}
                       >
@@ -363,11 +383,11 @@ export function TimelineView({
 
                       {/* Name + parliament */}
                       <div className="min-w-0 flex-1">
-                        <span className="text-sm font-semibold text-slate-200 leading-tight block">
+                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-tight block">
                           {locName}
                         </span>
                         {parlimentName && (
-                          <span className="text-xs text-slate-500 block leading-tight mt-0.5">
+                          <span className="text-xs text-slate-500 dark:text-slate-500 block leading-tight mt-0.5">
                             {parlimentName}
                           </span>
                         )}
@@ -383,18 +403,33 @@ export function TimelineView({
                           rel="noopener noreferrer"
                           title="Estimated road distance · tap for directions"
                           onClick={(e) => e.stopPropagation()}
-                          className="text-xs text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5 shrink-0 hover:bg-emerald-400/20 hover:border-emerald-400/40 transition-colors"
+                          className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-500/30 dark:border-emerald-400/20 rounded-full px-2 py-0.5 shrink-0 hover:bg-emerald-500/20 dark:hover:bg-emerald-400/20 hover:border-emerald-500/50 dark:hover:border-emerald-400/40 transition-colors"
                         >
                           {dist.formatted}
                         </a>
                       )}
 
+                      {/* Book on DBKL — deep link to the booking page for this venue/date/sport */}
+                      <a
+                        href={`https://tempahkl.dbkl.gov.my/facility/detail/book?location_id=${locId}&start_date=${date}&sub_category=${encodeURIComponent(sport)}&toggle_step=1`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Opens the DBKL booking page for this venue on the selected date. You must be logged in to DBKL first."
+                        className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2.5 py-0.5 shrink-0 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-colors inline-flex items-center gap-1"
+                      >
+                        Book
+                        <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current">
+                          <path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+                        </svg>
+                      </a>
+
                       {/* Court availability count */}
                       <span
                         className={`text-xs font-semibold rounded-full px-2.5 py-0.5 shrink-0 ${
                           availCount > 0
-                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                            : "bg-slate-700 text-slate-500"
+                            ? "bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+                            : "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-500"
                         }`}
                       >
                         {availCount}/{totalCourts} available
@@ -424,27 +459,24 @@ export function TimelineView({
         {/* end inner min-width wrapper */}
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 px-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-5 h-5 rounded"
-            style={{ backgroundColor: "#4ade80" }}
-          />
-          <span className="text-xs text-slate-400">Available</span>
+      {/* Legend — compact footnote-style */}
+      <div className="flex items-center gap-3 px-2 pt-2 border-t border-slate-200/70 dark:border-slate-700/40 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3.5 h-3.5 rounded-sm bg-emerald-500" />
+          <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">Available</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded bg-slate-600" />
-          <span className="text-xs text-slate-400">Booked</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3.5 h-3.5 rounded-sm bg-slate-200 dark:bg-slate-700" />
+          <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">Booked</span>
         </div>
         {(timeRangeStart || timeRangeEnd) && (
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-orange-500/30 border border-orange-500/50" />
-            <span className="text-xs text-slate-400">In selected window</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3.5 h-3.5 rounded-sm bg-orange-500/30 border border-orange-500/50" />
+            <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">In window</span>
           </div>
         )}
         {distances && distances.size > 0 && (
-          <span className="text-xs text-slate-500 ml-auto">
+          <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500 ml-auto">
             Sorted by distance · nearest first
           </span>
         )}

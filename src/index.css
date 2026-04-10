@@ -1,18 +1,47 @@
 @import "tailwindcss";
 
+/* Tailwind v4 dark variant — activated by adding `dark` class to <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  /* Brand */
   --color-primary: #059669;
   --color-accent: #f97316;
-  --color-surface: #1e293b;
-  --color-surface-deep: #0f172a;
-  --color-available: #4ade80;
-  --color-booked: #475569;
+
+  /* Light theme defaults */
+  --color-bg-base: #f8fafc;
+  --color-bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 60%, #ecfdf5 100%);
+  --color-body-text: #0f172a;
+
+  --color-scrollbar-track: #e2e8f0;
+  --color-scrollbar-thumb: #94a3b8;
+  --color-scrollbar-thumb-hover: #64748b;
+
+  /* Slot canonical colours (shared across themes) */
+  --color-available: #10b981; /* emerald-500 */
+  --color-booked-light: #e2e8f0; /* slate-200 */
+  --color-booked-dark: #334155; /* slate-700 */
+}
+
+.dark {
+  --color-bg-base: #0f172a;
+  --color-bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f2d1f 100%);
+  --color-body-text: #e2e8f0;
+
+  --color-scrollbar-track: #1e293b;
+  --color-scrollbar-thumb: #475569;
+  --color-scrollbar-thumb-hover: #64748b;
+}
+
+html {
+  color-scheme: light dark;
+  transition: background-color 200ms ease;
 }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background-color: var(--color-surface-deep);
-  color: #e2e8f0;
+  background-color: var(--color-bg-base);
+  color: var(--color-body-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -21,20 +50,20 @@ h1, h2, h3, .heading {
   font-family: 'Outfit', system-ui, sans-serif;
 }
 
-/* Subtle scrollbar to match dark theme */
+/* Themed scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: var(--color-scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: var(--color-scrollbar-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: var(--color-scrollbar-thumb-hover);
 }
 
 /* Animated shimmer keyframe used by progress bar */
@@ -52,4 +81,14 @@ h1, h2, h3, .heading {
   );
   background-size: 200% auto;
   animation: shimmer 2s linear infinite;
+}
+
+/* Subtle entry animation for location cards */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeSlideIn 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
