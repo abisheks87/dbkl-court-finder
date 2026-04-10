@@ -4,6 +4,7 @@ import {
   TIME_ORDER,
 } from "../utils/consecutiveSlots";
 import { CourtRow } from "./CourtRow";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { LocationDetail } from "../hooks/useLocationDetails";
 import type { LocationFacility, SportCategory } from "../types";
 
@@ -44,6 +45,8 @@ export function TimelineView({
   loadedCount = 0,
   totalCount = 0,
 }: TimelineViewProps) {
+  const isSmUp = useMediaQuery('(min-width: 640px)');
+  const isLandscape = useMediaQuery('(orientation: landscape) and (min-width: 480px)');
   const [showDimmed, setShowDimmed] = useState(false);
   const [collapsedLocations, setCollapsedLocations] = useState<Set<string>>(
     new Set(),
@@ -170,14 +173,23 @@ export function TimelineView({
     () => allTimeSlots.map((t) => timeValueToId.get(t) ?? ""),
     [allTimeSlots, timeValueToId],
   );
+  // Use desktop grid layout when screen is wide enough OR in landscape orientation
+  const useDesktopGrid = isSmUp || isLandscape;
+
+  // On mobile portrait: no venue column, slots use full width with no min-width constraint
   const timelineGridTemplate = useMemo(
     () =>
-      `${VENUE_COLUMN_WIDTH}px repeat(${allTimeSlotIds.length}, minmax(${TIME_COLUMN_MIN_WIDTH}px, 1fr))`,
-    [allTimeSlotIds.length],
+      useDesktopGrid
+        ? `${VENUE_COLUMN_WIDTH}px repeat(${allTimeSlotIds.length}, minmax(${TIME_COLUMN_MIN_WIDTH}px, 1fr))`
+        : `repeat(${allTimeSlotIds.length}, 1fr)`,
+    [allTimeSlotIds.length, useDesktopGrid],
   );
   const timelineMinWidth = useMemo(
-    () => VENUE_COLUMN_WIDTH + allTimeSlotIds.length * TIME_COLUMN_MIN_WIDTH,
-    [allTimeSlotIds.length],
+    () =>
+      useDesktopGrid
+        ? VENUE_COLUMN_WIDTH + allTimeSlotIds.length * TIME_COLUMN_MIN_WIDTH
+        : 0,
+    [allTimeSlotIds.length, useDesktopGrid],
   );
 
   // Early returns after all hooks
@@ -252,7 +264,7 @@ export function TimelineView({
       )}
 
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 transition-colors duration-200">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 transition-colors duration-200">
         <div className="flex items-center gap-3 text-sm flex-wrap">
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 inline-block"></span>
@@ -305,9 +317,9 @@ export function TimelineView({
           overflow-hidden is intentionally NOT used here — it breaks position:sticky on children.
           overflow-x-auto allows horizontal scroll on narrow screens while keeping sticky working.
       */}
-      <div className="bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-x-auto transition-colors duration-200">
+      <div className={`bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors duration-200 ${useDesktopGrid ? 'overflow-x-auto' : ''}`}>
         {/* Keep the inner width in sync with the shared timeline grid so rows stay aligned. */}
-        <div style={{ minWidth: `${timelineMinWidth}px` }}>
+        <div style={timelineMinWidth > 0 ? { minWidth: `${timelineMinWidth}px` } : undefined}>
           {/*
           gridTemplateColumns uses minmax(32px, 1fr) so time columns grow to fill the full
           available width on wide screens and shrink no smaller than 32px on narrow ones.
@@ -320,9 +332,11 @@ export function TimelineView({
               gridTemplateColumns: timelineGridTemplate,
             }}
           >
-            <div className="pr-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">
-              Venue
-            </div>
+            {useDesktopGrid && (
+              <div className="pr-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500 sticky-left bg-white/95 dark:bg-slate-950/95">
+                Venue
+              </div>
+            )}
             {allTimeSlots.map((slot) => (
               <div
                 key={slot}
@@ -447,6 +461,9 @@ export function TimelineView({
                           slots={court.location_facility_times}
                           isDimmed={showDimmed && !passingIds.has(court.id)}
                           timeSlotIds={allTimeSlotIds}
+                          venueColWidth={VENUE_COLUMN_WIDTH}
+                          showVenueColumn={useDesktopGrid}
+                          bookingUrl={`https://tempahkl.dbkl.gov.my/facility/detail/book?location_id=${locId}&start_date=${date}&sub_category=${encodeURIComponent(sport)}&toggle_step=1`}
                         />
                       ))}
                     </div>
@@ -463,20 +480,20 @@ export function TimelineView({
       <div className="flex items-center gap-3 px-2 pt-2 border-t border-slate-200/70 dark:border-slate-700/40 flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="w-3.5 h-3.5 rounded-sm bg-emerald-500" />
-          <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">Available</span>
+          <span className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">Available</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3.5 h-3.5 rounded-sm bg-slate-200 dark:bg-slate-700" />
-          <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">Booked</span>
+          <span className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">Booked</span>
         </div>
         {(timeRangeStart || timeRangeEnd) && (
           <div className="flex items-center gap-1.5">
             <div className="w-3.5 h-3.5 rounded-sm bg-orange-500/30 border border-orange-500/50" />
-            <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">In window</span>
+            <span className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">In window</span>
           </div>
         )}
         {distances && distances.size > 0 && (
-          <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500 ml-auto">
+          <span className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500 ml-auto">
             Sorted by distance · nearest first
           </span>
         )}

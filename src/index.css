@@ -92,3 +92,10 @@ h1, h2, h3, .heading {
 .animate-fade-in {
   animation: fadeSlideIn 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* Sticky venue column for horizontal scroll on mobile */
+.sticky-left {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}

@@ -10,7 +10,8 @@ interface UseFacilityReturn {
 export function useFacility(
   locationId: string | null,
   date: string | null,
-  sport: SportCategory
+  sport: SportCategory,
+  refreshKey = 0
 ): UseFacilityReturn {
   const [courts, setCourts] = useState<LocationFacility[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,7 +46,7 @@ export function useFacility(
     };
 
     fetchFacility();
-  }, [locationId, date, sport]);
+  }, [locationId, date, sport, refreshKey]);
 
   return { courts, loading, error };
 }

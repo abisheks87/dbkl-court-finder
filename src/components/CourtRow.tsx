@@ -7,9 +7,12 @@ interface CourtRowProps {
   slots: LocationFacilityTime[];
   isDimmed: boolean;
   timeSlotIds: string[];
+  venueColWidth: number;
+  showVenueColumn: boolean;
+  bookingUrl?: string;
 }
 
-export function CourtRow({ venueName, slots, isDimmed, timeSlotIds }: CourtRowProps) {
+export function CourtRow({ venueName, slots, isDimmed, timeSlotIds, venueColWidth, showVenueColumn, bookingUrl }: CourtRowProps) {
   /*
     The API sometimes returns overlapping slot records for the same time window
     (e.g. both a 1-hour "6–7 PM" slot AND a 2-hour "6–8 PM" slot).
@@ -60,26 +63,40 @@ export function CourtRow({ venueName, slots, isDimmed, timeSlotIds }: CourtRowPr
       const rawSpan = endIdx > startIdx ? endIdx - startIdx : 1;
       const span = Math.min(rawSpan, timeSlotIds.length - col);
       if (span > 1) skipUntilCol = col + span;
-      cells.push(<SlotCell key={slot.id} slot={slot} columnSpan={span} />);
+      cells.push(<SlotCell key={slot.id} slot={slot} columnSpan={span} bookingUrl={bookingUrl} />);
     } else {
       cells.push(
         <div
           key={`empty-${timeId}`}
-          className="h-10 rounded-sm bg-slate-100 dark:bg-slate-800"
+          className="h-11 sm:h-10 rounded-sm bg-slate-100 dark:bg-slate-800"
         />
       );
     }
   }
 
+  const gridTemplate = showVenueColumn
+    ? `${venueColWidth}px repeat(${timeSlotIds.length}, minmax(32px, 1fr))`
+    : `repeat(${timeSlotIds.length}, 1fr)`;
+
   return (
-    <div
-      className={`items-center py-1 ${isDimmed ? 'opacity-40' : ''}`}
-      style={{ display: 'grid', gridTemplateColumns: `160px repeat(${timeSlotIds.length}, minmax(32px, 1fr))` }}
-    >
-      <div className="pr-2 font-medium text-sm text-slate-700 dark:text-slate-300 truncate">
-        {venueName}
+    <div className={`py-1 ${isDimmed ? 'opacity-40' : ''}`}>
+      {/* On mobile: venue name as a label above the slots */}
+      {!showVenueColumn && (
+        <div className="px-1 pb-0.5 font-medium text-xs text-slate-700 dark:text-slate-300 truncate">
+          {venueName}
+        </div>
+      )}
+      <div
+        className="items-center"
+        style={{ display: 'grid', gridTemplateColumns: gridTemplate }}
+      >
+        {showVenueColumn && (
+          <div className="pr-2 font-medium text-sm text-slate-700 dark:text-slate-300 truncate sticky-left bg-white/70 dark:bg-slate-800/60">
+            {venueName}
+          </div>
+        )}
+        {cells}
       </div>
-      {cells}
     </div>
   );
 }

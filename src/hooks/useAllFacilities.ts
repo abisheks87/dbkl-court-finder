@@ -20,7 +20,8 @@ export function useAllFacilities(
   locations: LocationData[],
   date: string,
   enabled: boolean,
-  sport: SportCategory
+  sport: SportCategory,
+  refreshKey = 0
 ): UseAllFacilitiesReturn {
   const [results, setResults] = useState<LocationCourtGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -111,7 +112,7 @@ export function useAllFacilities(
     return () => {
       cancelled = true;
     };
-  }, [locations, date, enabled, sport]);
+  }, [locations, date, enabled, sport, refreshKey]);
 
   return { results, loading, progress, loadedCount, totalCount: locations.length, error };
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import './App.css';
 import { FilterBar } from './components/FilterBar';
 import { TimelineView } from './components/TimelineView';
@@ -8,10 +8,13 @@ import { useFacility } from './hooks/useFacility';
 import { useAllFacilities } from './hooks/useAllFacilities';
 import { useUserLocation } from './hooks/useUserLocation';
 import { useLocationDetails } from './hooks/useLocationDetails';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import { haversineKm, formatDistance } from './utils/distance';
 import { TIME_ORDER } from './utils/consecutiveSlots';
 import { SPORT_OPTIONS } from './types';
 import type { SportCategory } from './types';
+
+const NEAR_ME_MAX_KM = 10;
 
 function App() {
   const getTodayDate = () => {
@@ -23,9 +26,13 @@ function App() {
     ].join('-');
   };
 
+  const isSmUp = useMediaQuery('(min-width: 640px)');
+
   const [sport, setSportRaw] = useState<SportCategory>('BADMINTON');
   const [date, setDate] = useState(getTodayDate());
   const [locationId, setLocationId] = useState('');
+  const [nearMeOnly, setNearMeOnly] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Reset location when sport changes — previous location may not offer the new sport
   const handleSportChange = (newSport: SportCategory) => {
@@ -58,11 +65,15 @@ function App() {
     }
   };
 
+  const handleRefresh = useCallback(() => {
+    setRefreshKey(k => k + 1);
+  }, []);
+
   const { locations, loading: locationsLoading } = useLocations(sport);
 
   const isAllLocations = locationId === '';
-  const singleFacility = useFacility(isAllLocations ? null : locationId, date, sport);
-  const allFacilities = useAllFacilities(locations, date, isAllLocations, sport);
+  const singleFacility = useFacility(isAllLocations ? null : locationId, date, sport, refreshKey);
+  const allFacilities = useAllFacilities(locations, date, isAllLocations, sport, refreshKey);
 
   const activeCourts = useMemo(() => {
     if (isAllLocations) {
@@ -70,7 +81,6 @@ function App() {
         group.courts.map(court => ({
           ...court,
           location_name: group.location_name,
-          // Ensure courts from different location_ids with the same name are grouped separately
           location_id: group.location_id,
         }))
       );
@@ -91,9 +101,7 @@ function App() {
   const locationIds = useMemo(() => locations.map(l => l.location_id), [locations]);
   const locationDetails = useLocationDetails(locationIds);
 
-  // Rich distance map keyed by location_id: { formatted, km, lat, lng }
-  // km is the raw straight-line value used for sorting; formatted applies the road correction factor.
-  // Venues with invalid coordinates (lat/lng are NaN or zero) are skipped.
+  // Rich distance map keyed by location_id
   const distances = useMemo(() => {
     const distMap = new Map<string, { formatted: string; km: number; lat: number; lng: number }>();
     if (!userLocation.coords) return distMap;
@@ -111,6 +119,26 @@ function App() {
     return distMap;
   }, [userLocation.coords, locationDetails]);
 
+  // Near-me filtering: only show locations within NEAR_ME_MAX_KM
+  const nearMeLocationIds = useMemo(() => {
+    if (!nearMeOnly || distances.size === 0) return null;
+    const ids = new Set<string>();
+    distances.forEach((d, locId) => {
+      if (d.km <= NEAR_ME_MAX_KM) ids.add(locId);
+    });
+    return ids;
+  }, [nearMeOnly, distances]);
+
+  const filteredCourts = useMemo(() => {
+    if (!nearMeLocationIds) return activeCourts;
+    return activeCourts.filter(c => nearMeLocationIds.has(c.location_id));
+  }, [activeCourts, nearMeLocationIds]);
+
+  // Scroll to top helper for FAB
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   return (
     <div
       className="min-h-screen transition-colors duration-200"
@@ -118,7 +146,7 @@ function App() {
     >
       {/* Header */}
       <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700/60 backdrop-blur-sm sticky top-0 z-20 shadow-lg dark:shadow-2xl transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 py-3 sm:px-4 sm:py-4 flex items-center gap-2 sm:gap-4">
           {/* Shuttlecock icon */}
           <div className="w-10 h-10 rounded-xl bg-emerald-500/15 dark:bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
             <svg viewBox="0 0 24 24" className="w-6 h-6 fill-emerald-600 dark:fill-emerald-400" xmlns="http://www.w3.org/2000/svg">
@@ -127,7 +155,7 @@ function App() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
                 Court Finder
               </h1>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 dark:bg-emerald-500/20 border border-emerald-500/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold tracking-wider">
@@ -147,11 +175,23 @@ function App() {
               <span>Location active</span>
             </div>
           )}
+          {/* Refresh button */}
+          <button
+            onClick={handleRefresh}
+            disabled={courtsLoading}
+            className="w-11 h-11 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 hover:border-emerald-500/60 active:scale-95 transition-all duration-200 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+            aria-label="Refresh data"
+            title="Refresh court availability"
+          >
+            <svg viewBox="0 0 24 24" className={`w-4 h-4 fill-current ${courtsLoading ? 'animate-spin' : ''}`}>
+              <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+          </button>
           <ThemeToggle />
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-6">
         {/* Filter Bar */}
         <FilterBar
           sport={sport}
@@ -173,6 +213,8 @@ function App() {
           allLocationsProgress={allLocationsProgress}
           distances={distances.size > 0 ? distances : undefined}
           locationDetails={locationDetails}
+          nearMeOnly={nearMeOnly}
+          onNearMeChange={setNearMeOnly}
         />
 
         {/* Location permission hint */}
@@ -189,7 +231,7 @@ function App() {
 
         {/* Timeline View */}
         <TimelineView
-          courts={activeCourts}
+          courts={filteredCourts}
           date={date}
           sport={sport}
           minConsecutiveSlots={minConsecutiveSlots}
@@ -210,6 +252,19 @@ function App() {
           Data powered by DBKL API · {new Date().toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
       </footer>
+
+      {/* Mobile FAB — scroll to top / filters */}
+      {!isSmUp && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-5 right-5 z-30 w-12 h-12 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-all hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2"
+          aria-label="Scroll to top"
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+            <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
