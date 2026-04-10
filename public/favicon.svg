@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Rounded square bg matching the header icon style -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#10b981" opacity=".18"/>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="none" stroke="#10b981" stroke-width="2" opacity=".5"/>
+
+  <!-- Shuttlecock icon scaled to fit -->
+  <g transform="translate(32, 32) scale(1.8)">
+    <path d="M0-10C-2.2-10-4-8.2-4-6s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="#059669"/>
+    <path d="M7.07 4.93l-1.41-1.41c-.78-.78-2.05-.78-2.83 0L1 5.34V14h2V6.17l1.66-1.66 1.41 1.41L8 4.09l-0.93.84z" fill="#059669"/>
+  </g>
+</svg>
