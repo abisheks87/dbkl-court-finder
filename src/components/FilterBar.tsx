@@ -74,15 +74,18 @@ export function FilterBar({
   const locationInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const toLocalIso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   const today = new Date();
-  const minDate = today.toISOString().split('T')[0];
-  const maxDate = new Date(today.getTime() + 21 * 86400000).toISOString().split('T')[0];
+  const minDate = toLocalIso(today);
+  const maxDate = toLocalIso(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 21));
 
   // Date navigation helpers
   const shiftDate = (days: number) => {
     const current = new Date(date + 'T00:00:00');
     current.setDate(current.getDate() + days);
-    const iso = current.toISOString().split('T')[0];
+    const iso = toLocalIso(current);
     if (iso >= minDate && iso <= maxDate) onDateChange(iso);
   };
 

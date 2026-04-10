@@ -3,6 +3,8 @@
  * When DBKL API coordinates are bad, try to geocode by venue name and city.
  */
 
+import { isValidMalaysiaCoord } from './distance';
+
 export interface GeocodeResult {
   lat: number;
   lng: number;
@@ -43,7 +45,7 @@ export async function geocodeByName(
     const lat = parseFloat(first.lat);
     const lng = parseFloat(first.lon);
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (!isValidMalaysiaCoord(lat, lng)) return null;
 
     return { lat, lng };
   } catch {

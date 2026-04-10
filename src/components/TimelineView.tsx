@@ -314,10 +314,11 @@ export function TimelineView({
       </div>
 
       {/* Timeline grid
-          overflow-hidden is intentionally NOT used here — it breaks position:sticky on children.
-          overflow-x-auto allows horizontal scroll on narrow screens while keeping sticky working.
+          overflow-x-clip avoids creating a scroll container (unlike overflow-x-auto/hidden)
+          which would break position:sticky on the time header inside.
+          At desktop widths (max-w-7xl = 1280px) the grid min-width (~672px) fits comfortably.
       */}
-      <div className={`bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors duration-200 ${useDesktopGrid ? 'overflow-x-auto' : ''}`}>
+      <div className={`bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors duration-200 ${useDesktopGrid ? 'overflow-x-clip' : ''}`}>
         {/* Keep the inner width in sync with the shared timeline grid so rows stay aligned. */}
         <div style={timelineMinWidth > 0 ? { minWidth: `${timelineMinWidth}px` } : undefined}>
           {/*
@@ -326,7 +327,7 @@ export function TimelineView({
           The header and every CourtRow use the EXACT same template — perfect alignment guaranteed.
         */}
           <div
-            className="sticky top-2 z-20 border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-950/95 px-3 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:shadow-[0_10px_24px_rgba(2,6,23,0.45)] backdrop-blur-sm"
+            className="sticky top-[65px] sm:top-[73px] z-20 border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-950/95 px-3 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.08)] dark:shadow-[0_10px_24px_rgba(2,6,23,0.45)] backdrop-blur-sm"
             style={{
               display: "grid",
               gridTemplateColumns: timelineGridTemplate,
@@ -348,7 +349,9 @@ export function TimelineView({
                     : "text-slate-600 dark:text-slate-400"
                 }`}
               >
-                {slot.replace(":00 ", "").toLowerCase()}
+                {useDesktopGrid
+                  ? slot.replace(":00 ", "").toLowerCase()
+                  : slot.includes("12:00 PM") ? "12p" : slot.replace(/:00 (AM|PM)/, "").trim()}
               </div>
             ))}
           </div>

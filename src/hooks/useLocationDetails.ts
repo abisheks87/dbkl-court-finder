@@ -11,7 +11,7 @@ export interface LocationDetail {
   location_name?: string; // For geocoding fallback
 }
 
-const CACHE_KEY = 'dbkl_location_details_v1';
+const CACHE_KEY = 'dbkl_location_details_v2';
 
 function loadCache(): Map<string, LocationDetail> {
   try {
