@@ -13,7 +13,7 @@ import { haversineKm, formatDistance } from './utils/distance';
 import { TIME_ORDER } from './utils/consecutiveSlots';
 import { SPORT_OPTIONS } from './types';
 import type { SportCategory } from './types';
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from '@vercel/analytics/react';
 
 const NEAR_ME_MAX_KM = 10;
 
